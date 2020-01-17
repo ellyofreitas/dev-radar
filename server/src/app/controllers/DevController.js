@@ -1,6 +1,7 @@
 import api from '../../services/api';
 import Dev from '../models/Dev';
 import parseStringAsArray from '../../utils/parseStringAsArray';
+import { findConnections, sendMessage, connections } from '../../webSocket';
 
 class DevController {
   async index(req, res) {
@@ -36,6 +37,16 @@ class DevController {
       techs: techsArray,
       location,
     });
+
+    // Filter connections that are maximum 10km of distance
+    // and where new dev have one of techonolgy filtered
+
+    const sendSocketMessageTo = findConnections(
+      { latitude, longitude },
+      techsArray
+    );
+
+    sendMessage(sendSocketMessageTo, 'new-dev', dev);
 
     return res.json(dev);
   }
@@ -77,6 +88,8 @@ class DevController {
     }
 
     await Dev.findByIdAndDelete(id);
+
+    sendMessage(connections, 'remove-dev', id);
 
     return res.json();
   }

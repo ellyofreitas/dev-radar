@@ -9,6 +9,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 import PropTypes from 'prop-types';
 
 import api from '../../services/api';
+import {
+  connect,
+  disconnect,
+  subscribeToNewDevs,
+  subscribeToRemoveDev,
+} from '../../services/socket';
 
 import styles from './styles';
 
@@ -40,7 +46,32 @@ export default function Main({ navigation }) {
     loadInitialPosition();
   }, []);
 
+  useEffect(() => {
+    subscribeToNewDevs(dev => {
+      setDevs(oldDevs => {
+        // eslint-disable-next-line no-underscore-dangle
+        return [...oldDevs.filter(d => d._id !== dev._id), dev];
+      });
+    });
+
+    subscribeToRemoveDev(id => {
+      // eslint-disable-next-line no-underscore-dangle
+      setDevs(oldDevs => oldDevs.filter(d => d._id !== id));
+    });
+  }, [devs]);
+
+  function setupWebSocket() {
+    const { latitude, longitude } = currentRegion;
+    connect({
+      latitude,
+      longitude,
+      techs,
+    });
+  }
+
   async function loadDevs() {
+    disconnect();
+
     const { latitude, longitude } = currentRegion;
 
     const { data } = await api.get('/search', {
@@ -52,6 +83,7 @@ export default function Main({ navigation }) {
     });
 
     setDevs(data);
+    setupWebSocket();
   }
 
   function handleRegionChanged(region) {
@@ -71,6 +103,7 @@ export default function Main({ navigation }) {
       >
         {devs.map(dev => (
           <Marker
+            // eslint-disable-next-line no-underscore-dangle
             key={dev._id}
             coordinate={{
               longitude: dev.location.coordinates[0],
